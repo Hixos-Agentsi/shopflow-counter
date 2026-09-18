@@ -1,0 +1,11 @@
+{
+  "name": "shopflow-counter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/tracker.test.mjs && node tests/lifecycle.test.mjs",
+    "check": "node --check js/app.js && node --check js/tracker.js",
+    "serve": "npx serve ."
+  }
+}

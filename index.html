@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101b18" />
+    <meta
+      name="description"
+      content="Compteur de fréquentation magasin utilisant la webcam et une détection locale des personnes."
+    />
+    <title>ShopFlow Counter</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="ShopFlow Counter, accueil">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span>
+          <strong>ShopFlow</strong>
+          <small>Counter</small>
+        </span>
+      </a>
+      <div class="privacy-chip">
+        <span class="privacy-dot" aria-hidden="true"></span>
+        Images traitées localement
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="hero-copy">
+        <p class="eyebrow">FRÉQUENTATION EN TEMPS RÉEL</p>
+        <h1>Transformez votre webcam en compteur de visiteurs.</h1>
+        <p>
+          La détection fonctionne directement dans votre navigateur. Aucune image n’est
+          enregistrée ou envoyée vers un serveur.
+        </p>
+      </section>
+
+      <section class="metrics" aria-label="Indicateurs de fréquentation">
+        <article class="metric-card metric-primary">
+          <div class="metric-icon enter" aria-hidden="true">↘</div>
+          <div>
+            <span>Entrées aujourd’hui</span>
+            <strong id="entriesCount">0</strong>
+          </div>
+          <em id="entriesTrend">Session locale</em>
+        </article>
+        <article class="metric-card">
+          <div class="metric-icon exit" aria-hidden="true">↗</div>
+          <div>
+            <span>Sorties aujourd’hui</span>
+            <strong id="exitsCount">0</strong>
+          </div>
+          <em>Historique local</em>
+        </article>
+        <article class="metric-card">
+          <div class="metric-icon occupancy" aria-hidden="true">●</div>
+          <div>
+            <span>Présence estimée</span>
+            <strong id="occupancyCount">0</strong>
+          </div>
+          <em>Entrées − sorties</em>
+        </article>
+        <article class="metric-card">
+          <div class="metric-icon live" aria-hidden="true">◎</div>
+          <div>
+            <span>Personnes détectées</span>
+            <strong id="detectedCount">0</strong>
+          </div>
+          <em id="fpsLabel">Caméra arrêtée</em>
+        </article>
+      </section>
+
+      <section class="workspace-grid">
+        <article class="panel camera-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">CAMÉRA</p>
+              <h2>Zone de comptage</h2>
+            </div>
+            <span id="cameraStatus" class="status-pill status-idle">
+              <span></span> En attente
+            </span>
+          </div>
+
+          <div id="cameraStage" class="camera-stage">
+            <video id="cameraVideo" playsinline muted></video>
+            <canvas id="overlayCanvas"></canvas>
+            <div id="cameraPlaceholder" class="camera-placeholder">
+              <div class="camera-symbol" aria-hidden="true">◉</div>
+              <h3>Caméra prête à démarrer</h3>
+              <p>Votre navigateur vous demandera l’autorisation d’utiliser la webcam.</p>
+            </div>
+            <div id="loadingOverlay" class="loading-overlay" hidden>
+              <span class="spinner" aria-hidden="true"></span>
+              <strong id="loadingTitle">Chargement de l’IA…</strong>
+              <small id="loadingMessage">Le premier chargement peut prendre quelques secondes.</small>
+            </div>
+          </div>
+
+          <div class="camera-actions">
+            <button id="startButton" class="button button-primary" type="button">
+              <span aria-hidden="true">▶</span> Démarrer le comptage
+            </button>
+            <button id="stopButton" class="button button-secondary" type="button" disabled>
+              Arrêter
+            </button>
+            <button id="fullscreenButton" class="button button-ghost" type="button">
+              Plein écran
+            </button>
+          </div>
+
+          <p style="font-size:12px;color:var(--muted);line-height:1.6">Pour tester avec votre PC : reculez pour que votre buste soit visible, puis traversez la ligne de gauche à droite. Le centre du cadre vert doit la franchir. Gardez cet onglet visible et le PC éveillé.</p>
+          <p id="errorMessage" class="error-message" role="alert" hidden></p>
+        </article>
+
+        <aside class="panel settings-panel">
+          <div class="panel-heading compact">
+            <div>
+              <p class="panel-kicker">RÉGLAGES</p>
+              <h2>Configuration</h2>
+            </div>
+          </div>
+
+          <div class="settings-form">
+            <label class="field">
+              <span>Caméra utilisée</span>
+              <select id="cameraSelect">
+                <option value="">Caméra par défaut</option>
+              </select>
+            </label>
+
+            <div class="field split-field">
+              <label>
+                <span>Ligne de passage</span>
+                <select id="orientationSelect">
+                  <option value="horizontal">Horizontale</option>
+                  <option value="vertical">Verticale</option>
+                </select>
+              </label>
+              <label>
+                <span>Direction d’entrée</span>
+                <select id="directionSelect">
+                  <option value="negative-to-positive">Haut → bas</option>
+                  <option value="positive-to-negative">Bas → haut</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field range-field">
+              <span>
+                Position de la ligne
+                <output id="linePositionOutput" for="linePosition">50 %</output>
+              </span>
+              <input id="linePosition" type="range" min="20" max="80" value="50" />
+            </label>
+
+            <label class="field range-field">
+              <span>
+                Seuil de confiance
+                <output id="confidenceOutput" for="confidenceRange">55 %</output>
+              </span>
+              <input id="confidenceRange" type="range" min="35" max="85" value="55" />
+            </label>
+
+            <label class="switch-row">
+              <span>
+                <strong>Effet miroir</strong>
+                <small>Pratique avec la webcam frontale</small>
+              </span>
+              <input id="mirrorToggle" type="checkbox" checked />
+              <span class="switch" aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <div class="test-tools">
+            <p>Test et correction manuelle</p>
+            <div>
+              <button id="manualEntryButton" class="mini-button" type="button">+ 1 entrée</button>
+              <button id="manualExitButton" class="mini-button" type="button">+ 1 sortie</button>
+            </div>
+          </div>
+
+          <div class="privacy-note">
+            <span aria-hidden="true">◆</span>
+            <div>
+              <strong>Confidentialité intégrée</strong>
+              <p>Seuls l’heure et le sens de passage sont conservés sur cet appareil.</p>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="analytics-grid">
+        <article class="panel chart-panel">
+          <div class="panel-heading compact">
+            <div>
+              <p class="panel-kicker">AUJOURD’HUI</p>
+              <h2>Fréquentation par heure</h2>
+            </div>
+            <button id="exportButton" class="text-button" type="button">Exporter CSV ↓</button>
+          </div>
+          <div id="hourlyChart" class="hourly-chart" aria-label="Graphique des entrées par heure"></div>
+        </article>
+
+        <article class="panel events-panel">
+          <div class="panel-heading compact">
+            <div>
+              <p class="panel-kicker">JOURNAL LOCAL</p>
+              <h2>Derniers passages</h2>
+            </div>
+            <button id="resetButton" class="text-button danger" type="button">Réinitialiser</button>
+          </div>
+          <div id="eventsList" class="events-list">
+            <div class="empty-state">Aucun passage enregistré aujourd’hui.</div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <span>ShopFlow Counter · Prototype local</span>
+      <span>Aucune reconnaissance faciale · Aucun enregistrement vidéo</span>
+    </footer>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
