@@ -1,14 +1,16 @@
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-function stableSide(point, orientation, lineCoordinate, hysteresis) {
-  const coordinate = orientation === "horizontal" ? point.y : point.x;
-  if (coordinate < lineCoordinate - hysteresis) return -1;
-  if (coordinate > lineCoordinate + hysteresis) return 1;
+function stableSide(box, orientation, lineCoordinate, hysteresis) {
+  const nearEdge = orientation === "horizontal" ? box.y : box.x;
+  const farEdge = nearEdge + (orientation === "horizontal" ? box.height : box.width);
+  // A box straddling or touching the line never establishes a new side.
+  if (farEdge < lineCoordinate - hysteresis) return -1;
+  if (nearEdge > lineCoordinate + hysteresis) return 1;
   return 0;
 }
 
 /**
- * Very small centroid tracker tailored for anonymous doorway counting.
+ * Match people by their centroids, but count only full bounding-box crossings.
  * Track IDs live only in memory and disappear after a short timeout.
  */
 export class CrossingTracker {
@@ -18,7 +20,6 @@ export class CrossingTracker {
     this.options = {
       maxDistance: options.maxDistance ?? 140,
       maxAgeMs: options.maxAgeMs ?? 1200,
-      cooldownMs: options.cooldownMs ?? 1200,
       hysteresis: options.hysteresis ?? 12,
     };
   }
@@ -28,7 +29,7 @@ export class CrossingTracker {
     this.tracks.clear();
   }
 
-  update(points, timestamp, config) {
+  update(boxes, timestamp, config) {
     // Expire BEFORE matching: a new person must not inherit a stale crossing.
     for (const [id, track] of this.tracks) {
       if (timestamp - track.lastSeen > this.options.maxAgeMs) this.tracks.delete(id);
@@ -37,7 +38,10 @@ export class CrossingTracker {
     const events = [];
     const assignments = [];
 
-    for (const point of points) {
+    for (const box of boxes) {
+      if (![box.x, box.y, box.width, box.height].every(Number.isFinite) ||
+          box.width <= 0 || box.height <= 0) continue;
+      const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       let bestTrack = null;
       let bestDistance = this.options.maxDistance;
 
@@ -52,10 +56,10 @@ export class CrossingTracker {
 
       if (bestTrack) {
         availableTrackIds.delete(bestTrack.id);
-        assignments.push({ track: bestTrack, point });
+        assignments.push({ track: bestTrack, point, box });
       } else {
         const side = stableSide(
-          point,
+          box,
           config.orientation,
           config.lineCoordinate,
           this.options.hysteresis,
@@ -65,15 +69,14 @@ export class CrossingTracker {
           point,
           stableSide: side,
           lastSeen: timestamp,
-          lastCounted: -Infinity,
         };
         this.tracks.set(track.id, track);
       }
     }
 
-    for (const { track, point } of assignments) {
+    for (const { track, point, box } of assignments) {
       const newSide = stableSide(
-        point,
+        box,
         config.orientation,
         config.lineCoordinate,
         this.options.hysteresis,
@@ -82,8 +85,7 @@ export class CrossingTracker {
       if (
         newSide !== 0 &&
         track.stableSide !== 0 &&
-        newSide !== track.stableSide &&
-        timestamp - track.lastCounted >= this.options.cooldownMs
+        newSide !== track.stableSide
       ) {
         const rawDirection = track.stableSide === -1
           ? "negative-to-positive"
@@ -94,9 +96,10 @@ export class CrossingTracker {
           trackId: track.id,
           timestamp,
         });
-        track.lastCounted = timestamp;
       }
 
+      // Remember the last fully occupied side while the box overlaps the line.
+      // A first detection on the line has no origin and therefore cannot count.
       if (newSide !== 0) track.stableSide = newSide;
       track.point = point;
       track.lastSeen = timestamp;

@@ -1,4 +1,4 @@
-import { CrossingTracker, computeLineCoordinate } from "./tracker.js";
+import { CrossingTracker, computeLineCoordinate } from "./tracker.js?v=0.2.0";
 
 const STORAGE_KEY = "shopflow-counter-events-v1";
 const SETTINGS_KEY = "shopflow-counter-settings-v1";
@@ -338,7 +338,7 @@ function currentLineCoordinate() {
 
 function processCrossings(predictions) {
   const result = tracker.update(
-    predictions.map((prediction) => prediction.center),
+    predictions,
     Date.now(),
     {
       orientation: settings.orientation,

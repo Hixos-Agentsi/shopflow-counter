@@ -65,7 +65,9 @@ function harness() {
 {
   const h=harness();
   h.run('elements.canvas.width=640; elements.canvas.height=480; settings.mirror=false; settings.orientation="vertical"; settings.linePosition=50');
-  h.run('processCrossings([{center:{x:270,y:200}}]); processCrossings([{center:{x:360,y:200}}])');
+  h.run('processCrossings([{x:200,y:100,width:100,height:200}]); processCrossings([{x:280,y:100,width:100,height:200}])');
+  assert.equal(h.nodes.entriesCount.textContent,'0','centre crossing alone is not a passage');
+  h.run('processCrossings([{x:334,y:100,width:100,height:200}])');
   assert.equal(h.nodes.entriesCount.textContent,'1');
   assert.equal(h.nodes.occupancyCount.textContent,'1');
   const event=JSON.parse(h.storage.get('shopflow-counter-events-v1'))[0];
@@ -74,3 +76,14 @@ function harness() {
   assert.equal('trackId' in event,false);
 }
 console.log('Camera lifecycle and counter integration (simulated): OK');
+
+// Display mirror and detection use the same whole rectangle coordinates.
+{
+  const h=harness();
+  h.run('elements.canvas.width=640; elements.canvas.height=480; settings.mirror=true; settings.orientation="vertical"; settings.linePosition=50');
+  h.run('processCrossings([mapPredictionForDisplay({bbox:[340,100,100,200],score:0.9})]); processCrossings([mapPredictionForDisplay({bbox:[260,100,100,200],score:0.9})])');
+  assert.equal(h.nodes.entriesCount.textContent,'0');
+  h.run('processCrossings([mapPredictionForDisplay({bbox:[206,100,100,200],score:0.9})])');
+  assert.equal(h.nodes.entriesCount.textContent,'1');
+}
+console.log('Whole-rectangle integration and mirrored display: OK');

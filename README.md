@@ -22,8 +22,9 @@ Aucun abonnement IA, clé API ou Node.js n'est nécessaire sur le PC utilisateur
 3. Attendre le chargement du modèle (Internet nécessaire au chargement).
 4. Reculer pour que le buste soit bien visible dans un cadre vert.
 5. Avec les réglages initiaux, traverser la ligne verticale de gauche à droite
-   **dans l'image affichée** : le centre du cadre vert doit franchir la ligne.
-6. Revenir dans l'autre sens pour compter une sortie. Espacer les passages d'au moins deux secondes.
+   **dans l'image affichée** : tout le rectangle vert doit passer de l'autre côté.
+   Tant qu'il touche ou chevauche la ligne, aucun passage n'est ajouté.
+6. Revenir entièrement dans l'autre sens pour compter une sortie.
 7. Utiliser **Arrêter** pour libérer la webcam.
 
 La ligne peut être horizontale ou verticale, déplacée et inversée. L'effet miroir
@@ -39,7 +40,8 @@ Il ne fonctionne pas quand le navigateur est fermé ou le PC en veille.
 
 - sélection de la webcam ;
 - détection de personnes avec COCO-SSD et TensorFlow.js ;
-- suivi temporaire du centre des cadres et franchissement avec bande de tolérance ;
+- suivi temporaire par proximité des centres ; comptage uniquement lorsque le rectangle
+  entier passe d'un côté à l'autre, avec une tolérance de 12 pixels ;
 - entrées, sorties et présence estimée du jour (base zéro en début de journée) ;
 - graphique horaire et dernier historique ;
 - stockage local de 5 000 événements au maximum ; les plus anciens sont remplacés ;
@@ -77,6 +79,14 @@ aux groupes rapprochés et aux déplacements rapides. Il compte des **passages**
 pas des clients uniques. Il n'exclut pas les salariés et ne reconnaît pas les foyers.
 Tester manuellement plusieurs parcours avant de tirer des conclusions commerciales.
 Une caméra vue du dessus nécessite de vérifier l'adéquation du modèle à cet angle.
+
+Le rectangle doit d'abord avoir été observé entièrement d'un côté de la ligne.
+Une personne détectée pour la première fois à cheval sur la ligne ne sera pas
+comptée à sa première sortie de cette zone. Un franchissement partiel suivi d'un
+retour du même côté ne compte pas. Une fois un passage complet enregistré, un
+retour complet en sens inverse enregistre un passage inverse, même rapide.
+Le comptage suit le rectangle détecté, dont les contours peuvent varier ; il ne
+garantit pas que toutes les parties du corps réel sont visibles dans le cadre.
 
 L'intégration Shopify, les statistiques multi-magasins et la sauvegarde centralisée
 ne sont pas encore incluses. Ne jamais placer de jeton Shopify privé dans ce site public.
